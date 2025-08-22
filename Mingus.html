@@ -45,6 +45,9 @@
     .characters img.garden{height:270px; position:absolute; left:2vw; bottom:0; animation-duration:4s}
     .characters img.house{height:270px; position:absolute; bottom:0; animation-duration:4s}
     .characters img.right{right:2vw}
+    /* v18: Startscreen-Layering – Häuser hinter NPCs/Player */
+    .characters img.player,.characters img.npc{position:relative; z-index:5}
+    .characters img.garden,.characters img.house{z-index:1}
     @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
     .hero.play .characters{display:none}
 
@@ -98,7 +101,7 @@
 
     <div class="characters" id="characters">
       <img class="garden" src="Garten.png" alt="Garten" />
-      <img src="62139b8e.png" alt="Wir zwei" />
+      <img class="player" src="62139b8e.png" alt="Wir zwei" />
       <img class="npc" src="coco.png" alt="Affe Coco" />
       <img class="npc" src="pengussy.png" alt="Pinguin" />
       <img class="npc" src="capy.png" alt="Capybara" />
