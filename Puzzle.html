@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Warum ich dich Liebe Puzzle</title>
+  <style>
+    :root{
+      --bg: #f8f6f2; --ink:#2d2a26; --accent:#e4578a; --soft:#e9e4dc;
+      --puzzle-image: url('Puzzle.png');
+      --aspect: 1 / 1; --radius: 14px; --boardW: 900px; --boardH: 900px; --pw: 112.5px; --ph: 112.5px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--ink); background:var(--bg)}
+    header{position:relative; z-index:1000; background:transparent; border-bottom:1px solid var(--soft)}
+    .wrap{max-width:1300px; margin:0 auto; padding:16px}
+    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    h1{font-size:clamp(20px, 2.6vw, 34px); margin:10px 0}
+    .hint{color:#6b6761; font-size:14px}
+    .controls{display:flex; gap:12px; flex-wrap:wrap; align-items:center; padding:10px 0 16px}
+    .btn, .file{border:1px solid var(--soft); background:white; padding:10px 14px; border-radius:12px; cursor:pointer; box-shadow:0 1px 0 rgba(0,0,0,.04)}
+    .btn:hover{transform:translateY(-1px)}
+    .progress{display:flex; align-items:center; gap:10px}
+    .bar{flex:1; height:10px; background:var(--soft); border-radius:999px; overflow:hidden; min-width:180px}
+    .bar>i{display:block; height:100%; width:0%; background:linear-gradient(90deg, var(--accent), #ff9f1c)}
+
+    .stage{display:grid; gap:14px; grid-template-columns:minmax(260px,1fr) minmax(260px,1fr); grid-template-areas:"tray board"; align-items:start; justify-content:center}
+    .board{grid-area:board; width:clamp(260px,46vw,560px); aspect-ratio:var(--aspect); border-radius:var(--radius); border:1px solid var(--soft); background:#ddd; position:relative; overflow:hidden; user-select:none; touch-action:none}
+    .grid-line{position:absolute; background:rgba(0,0,0,.06)}
+    /* sehr transparente Bild-Vorschau fürs Tipp-Feature */
+    .board .hint-img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.14; pointer-events:none; z-index:1; filter:contrast(105%) saturate(105%)}
+    .tray{grid-area:tray; width:clamp(260px,46vw,560px); aspect-ratio:var(--aspect); border:1px dashed var(--soft); border-radius:var(--radius); background:white; position:relative; overflow:hidden; padding:10px}
+
+    .piece{position:absolute; width:var(--pw); height:var(--ph); border-radius:8px; overflow:hidden; box-shadow:0 4px 14px rgba(0,0,0,.12); border:1px solid rgba(0,0,0,.06); cursor:grab; touch-action:none; transition:box-shadow .15s ease, transform .15s ease; z-index:60; transform:var(--rot, rotate(0deg)); transform-origin: top left; background:white}
+    .piece>img{position:absolute; pointer-events:none; user-select:none; -webkit-user-drag:none; width:var(--boardW); height:var(--boardH); left:calc(var(--tileX) * -1px); top:calc(var(--tileY) * -1px)}
+    .piece:active{cursor:grabbing; box-shadow:0 10px 22px rgba(0,0,0,.18)}
+    .placed{box-shadow:none; border:none}
+    .in-tray{transform:var(--rot, rotate(0deg))}
+
+    .toast{position:fixed; inset:auto 0 18px 0; display:flex; justify-content:center; z-index:70; pointer-events:none}
+    .toast .card{pointer-events:auto; max-width:min(90vw, 720px); background:white; border:1px solid var(--soft); border-radius:16px; padding:16px 18px; box-shadow:0 10px 30px rgba(0,0,0,.15); display:flex; gap:12px; align-items:flex-start; animation:pop .15s ease}
+    .toast .n{font-weight:600; color:var(--accent)}
+    @keyframes pop{from{transform:translateY(10px); opacity:0} to{transform:translateY(0); opacity:1}}
+
+    .popover{position:fixed; z-index:2147483647; background:white; border:1px solid var(--soft); border-radius:12px; padding:12px 14px; max-width:min(320px, 80%); box-shadow:0 10px 30px rgba(0,0,0,.18); transform:translate(-50%, -120%); opacity:0; pointer-events:none; transition:opacity .15s ease, transform .15s ease}
+    .popover.show{opacity:1; pointer-events:auto}
+    .popover .n{font-weight:600; color:var(--accent); margin-bottom:4px}
+    .popover::after{content:""; position:absolute; left:50%; bottom:-8px; transform:translateX(-50%) rotate(45deg); width:14px; height:14px; background:white; border-left:1px solid var(--soft); border-bottom:1px solid var(--soft)}
+    .popover.below{transform:translate(-50%, 8px)}
+    .popover.below::after{top:-8px; bottom:auto; transform:translateX(-50%) rotate(225deg); border-left:none; border-bottom:none; border-right:1px solid var(--soft); border-top:1px solid var(--soft)}
+
+    .final{position:fixed; inset:0; display:grid; place-items:center; z-index:200000; background:rgba(255,255,255,.85); opacity:0; pointer-events:none; transition:opacity .25s ease}
+    .final.show{opacity:1; pointer-events:auto}
+    .final .box{background:white; border:1px solid var(--soft); border-radius:22px; padding:24px 26px; max-width:min(92vw, 720px); text-align:center; box-shadow:0 20px 40px rgba(0,0,0,.2)}
+    .final h2{margin:0 0 10px}
+    .reasons-list{max-height:50vh; overflow:auto; text-align:left; margin:8px 0 0; padding-left:.6rem; list-style-position: inside;}
+    .reasons-list li{margin:2px 0; line-height:1.4;}
+
+    /* Vollbild-Grund-Overlay */
+    .reason-overlay{position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.72); z-index:220000}
+    .reason-overlay.show{display:grid}
+    .reason-overlay .inner{color:#fff; text-align:center; max-width:min(92vw, 900px); padding:24px}
+    .reason-overlay .inner .n{font-weight:600; opacity:.85; margin-bottom:6px; font-size:clamp(12px,1.4vw,18px)}
+    .reason-overlay .inner .text{font-weight:800; font-size:clamp(28px,5vw,56px); line-height:1.15}
+
+    /* Bestätigungs-Overlay für Lösung */
+    .confirm{position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.5); z-index:230000}
+    .confirm.show{display:grid}
+    .confirm .box{background:white; border:1px solid var(--soft); border-radius:18px; padding:18px 20px; max-width:min(92vw,520px); text-align:center; box-shadow:0 20px 40px rgba(0,0,0,.25)}
+    .confirm .actions{display:flex; gap:10px; justify-content:center; margin-top:12px}
+    .btn.warn{background:var(--accent); color:white; border-color:transparent}
+
+    .confetti{position:fixed; top:-10px; width:8px; height:14px; border-radius:2px; opacity:.9; z-index:100}
+    @keyframes fall{to{transform:translateY(110vh) rotate(720deg); opacity:1}}
+
+    small.mini{font-size:12px; color:#6b6761}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Warum ich dich Liebe Puzzle <span class="hint">– am besten von oben nach unten die Puzzleteile und versuche rauszuzoomen meine maus </span></h1>
+      <div class="controls">
+        <button id="btnShuffle" class="btn">Mischen</button>
+        <button id="btnSolve" class="btn">Lösung</button>
+        <button id="btnHint" class="btn">Tipp</button>
+        <button id="btnUndoSolve" class="btn" style="display:none">↩️ Zurück</button>
+        <div class="progress"><div class="bar"><i id="bar"></i></div><div><span id="count">0</span>/<span id="total">64</span></div></div>
+        <button id="btnPlay" class="btn">▶️ Radio</button>
+        <button id="btnStop" class="btn">⏹️ Stop</button>
+        <span id="np" class="mini">Radio: aus</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="stage">
+      <div id="board" class="board"></div>
+      <div id="tray" class="tray"></div>
+      <small class="mini">Du schaffst das meine Maus!!!</small>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <!-- Overlay: einzelner Grund nach richtigem Platzieren -->
+  <div id="reasonOverlay" class="reason-overlay">
+    <div class="inner">
+      <div class="n" id="reasonN"></div>
+      <div class="text" id="reasonText"></div>
+    </div>
+  </div>
+
+  <!-- Bestätigungsfenster für "Lösung" -->
+  <div id="confirmSolve" class="confirm">
+    <div class="box">
+      <h3 style="margin:0 0 8px">Bist du sicher, dass du nicht mehr puzzeln willst, meine maus?</h3>
+      <div class="actions">
+        <button id="confirmYes" class="btn warn">Ja</button>
+        <button id="confirmNo" class="btn">Nein</button>
+      </div>
+    </div>
+  </div>
+  <div class="text" id="reasonText"></div>
+    </div>
+  </div>
+
+  <div class="final" id="final">
+    <div class="box">
+      <h2>Alles sitzt! 💖</h2>
+      <p id="finalMsg">Geschafft!</p>
+      <h3 style="margin:12px 0 8px">Gründe, warum ich dich liebe</h3>
+      <ol id="reasonsList" class="reasons-list"></ol>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    'use strict';
+    const GRID = 8; const TOTAL = GRID*GRID;
+    // ======= HIER DEINE GRÜNDE EINTRAGEN =======
+    // Beispiele – ändere/ergänze sie nach Belieben (alle mit „weil …“):
+    const reasons = [
+      "weil du mich immer zum Lachen bringst",
+      "weil du dich immer in andere Menschen hinein setzt",
+      "weil du dir immer viel Zeit für mich nimmst",
+      "weil du an mich glaubst, auch wenn ich zweifle",
+      "weil du Alles machst damit ich mich gut fühle (kraulungs)",
+      "weil ich dir alles erzählen kann",
+      "weil du mir nichts verheimlichst",
+      "weil du die selbe Vorstellung von der Zukunft hast wie ich",
+      "weil du so goofy bist",
+      "weil du so guuut rieechst",
+      "weil du auch vor mir pupsen kannst",
+      "weil du das süßeste lächeln hast",
+      "weil du mich so spitz machst",
+      "weil du eine süße knoblacuh nase hast",
+      "weil du eine Hygienequeen bist",
+      "weil du dir One Piece anschaust obwohl du es mies langweilig findest",
+      "weil du so aufmerksam bist",
+      "weil du mich nicht insecure fühlen lässt",
+      "weil du immer an mich denkst",
+      "weil du TFT spielst",
+      "weil du einen freshen Style hast",
+      "weil du so mysterious bist",
+    "weil du mir immer sagst das ich gut aussehe",
+    "weil du meine erste Liebe bist",
+      "weil du GTA gespielt hast",
+      "weil du die selben Vorstellung einer BEziehung hast",
+      "weil du keinen hohen Body count hast",
+      "weil du nicht rauchst",
+      "weil du nicht so ein Clubgänger bist",
+      "weil ich mich auf dich verlassen kann",
+      "weil du immer da bist wenn ich dich brauche",
+      "weil du dir alles zu Herzen nimmst",
+      "weil du ein süses Verhältnis zu deiner Familie hast",
+      "weil du den gleichen goofy Humor hast",
+      "weil du bei all deinen Aktionen auf mich achtest",
+      "weil du eine Haushaltsqueen bist",
+      "weil du immer versuchst mich zu verstehen",
+      "weil du kein technischer boomer bist",
+      "weil du eine designer maus bist",
+      "weil du in Sportarten kein kompletter Noob bist",
+    "weil du immer so ehrgeizig bist",
+      "weil du mir alles erfüllst auch wenns es ungangenehm ist",
+      "weil du mir jeden Tag Gjumo schreibst",
+      "weil ich dich jederzeit anrufen kann",
+"weil du so ein smartes bebi bist",
+      "weil du ein Temu Warrior bist und keine schicki micki queen",
+      "weil du auch ohne make up die schönste bist",
+      "weil du immer mein Rücken kraulst",
+      "weil du süße Entensocken trägst",
+      "weil du immer den weiten Weg zu mir kommst",
+      "weil du mir vietnamesisch beigebracht hast",
+      "weil du süße früchte hast",
+      "weil du einen riesen popo hast",
+      "weil ich unsere Beziehung liebe",
+      "weil du die Liebe meines Lebens bist",
+      "weil ich für immer mit dir leben will",
+      "weil ich mit dir alt werden will",
+      "weil du eine kleine weinmaus bist",
+      "weil du nicht so viel alkohol trinkst",
+      "weil du mein essen liebst",
+      "weil du ein einfachen Geschmack hast",
+      "weil du easy spitz zu machen bist",
+      "weil du mochi backen hast",
+      "weil ich Kuschlungen mit dir liebe",
+    ];
+    // Falls weniger als 64 Gründe, fülle den Rest automatisch mit „weil “:
+    while (reasons.length < TOTAL) reasons.push("a");
+    // Einheitlicher Zugriff:
+    const reasonAt = (i) => reasons[i] ?? "a";
+    // ===========================================
+
+    let board, tray, bar, countEl, toast, finalOverlay, replayBtn, solveBtn, undoBtn, fileInput, shuffleBtn, popEl, reasonOverlay, reasonN, reasonText, confirmOverlay, confirmYes, confirmNo, hintBtn, hintImg;
+    let boardRect, trayRect, pw, ph, placedCount = 0, zCounter = 1;
+    const pieces = []; // {el,row,col,correctX,correctY,placed}
+    let preSolveSnapshot = null; let currentPopIdx = null;
+    let imgURL = 'Puzzle.png';
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init(){
+      board = document.getElementById('board');
+      tray = document.getElementById('tray');
+      bar = document.getElementById('bar');
+      countEl = document.getElementById('count');
+      toast = document.getElementById('toast');
+      finalOverlay = document.getElementById('final');
+      replayBtn = document.getElementById('replay');
+      solveBtn = document.getElementById('btnSolve');
+      undoBtn  = document.getElementById('btnUndoSolve');
+      shuffleBtn=document.getElementById('btnShuffle');
+
+      // Tipp-Button & transparentes Hinweisbild im Board
+      hintBtn = document.getElementById('btnHint');
+      hintImg = document.createElement('img');
+      hintImg.className = 'hint-img';
+      hintImg.alt = '';
+      hintImg.style.display = 'none';
+      board.appendChild(hintImg);
+
+      // Reason overlay
+      reasonOverlay = document.getElementById('reasonOverlay');
+      reasonN = document.getElementById('reasonN');
+      reasonText = document.getElementById('reasonText');
+      if(reasonOverlay){ reasonOverlay.addEventListener('click', ()=> reasonOverlay.classList.remove('show')); }
+
+      // Confirm overlay
+      confirmOverlay = document.getElementById('confirmSolve');
+      confirmYes = document.getElementById('confirmYes');
+      confirmNo = document.getElementById('confirmNo');
+      if(confirmYes) confirmYes.addEventListener('click', ()=>{ if(confirmOverlay) confirmOverlay.classList.remove('show'); solveAll(); });
+      if(confirmNo)  confirmNo.addEventListener('click', ()=>{ if(confirmOverlay) confirmOverlay.classList.remove('show'); });
+
+      // Popover
+      popEl = document.createElement('div'); popEl.className='popover'; document.body.appendChild(popEl);
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closePopover(); if(finalOverlay) finalOverlay.classList.remove('show'); } });
+      document.addEventListener('pointerdown', (e)=>{
+        const t = e.target;
+        const inPiece = (t instanceof Element) && t.closest('.piece');
+        const inPop = popEl.contains(t);
+        if(popEl.classList.contains('show') && !inPiece && !inPop){ closePopover(); }
+        if(finalOverlay && finalOverlay.classList.contains('show') && !(t instanceof Element && t.closest('.final .box'))){ finalOverlay.classList.remove('show'); }
+        if(reasonOverlay && reasonOverlay.classList.contains('show')){ reasonOverlay.classList.remove('show'); }
+        if(confirmOverlay && confirmOverlay.classList.contains('show') && !(t instanceof Element && t.closest('.confirm .box'))){ confirmOverlay.classList.remove('show'); }
+      }, true);
+
+      if (shuffleBtn) shuffleBtn.addEventListener('click', shuffleUnplaced);
+      if (solveBtn)   solveBtn.addEventListener('click', ()=>{ if(confirmOverlay) confirmOverlay.classList.add('show'); else solveAll(); });
+      if (undoBtn)    undoBtn.addEventListener('click', undoSolve);
+      if (replayBtn)  replayBtn.addEventListener('click', ()=>{ finalOverlay.classList.remove('show'); resetAll(); });
+      if (hintBtn)    hintBtn.addEventListener('click', ()=>{ if(!hintImg) return; hintImg.style.display = (hintImg.style.display==='none'||!hintImg.style.display) ? 'block' : 'none'; });
+
+      bootDefaultImage();
+      window.addEventListener('resize', ()=>{ layout(); if(popEl.classList.contains('show') && currentPopIdx!=null) positionPopover(currentPopIdx); });
+      window.addEventListener('scroll', ()=>{ if(popEl.classList.contains('show') && currentPopIdx!=null) positionPopover(currentPopIdx); }, {passive:true});
+    }
+
+    function makeGridGuides(){
+      board.querySelectorAll('.grid-line').forEach(n=>n.remove());
+      for(let i=1;i<GRID;i++){
+        const v=document.createElement('div'); v.className='grid-line'; Object.assign(v.style,{position:'absolute',width:'1px',height:'100%',left:(100/GRID*i)+'%',top:0}); board.appendChild(v);
+        const h=document.createElement('div'); h.className='grid-line'; Object.assign(h.style,{position:'absolute',height:'1px',width:'100%',top:(100/GRID*i)+'%',left:0}); board.appendChild(h);
+      }
+    }
+
+    function buildPieces(){
+      pieces.length = 0; placedCount = 0; updateProgress();
+      document.querySelectorAll('.piece').forEach(p=>p.remove());
+
+      boardRect = board.getBoundingClientRect();
+      const bW = Math.floor(boardRect.width), bH = Math.floor(boardRect.height);
+      pw = bW / GRID; ph = bH / GRID;
+      setVars(bW,bH,pw,ph);
+
+      for(let r=0;r<GRID;r++){
+        for(let c=0;c<GRID;c++){
+          const idx = r*GRID + c;
+          const el = document.createElement('div'); el.className = 'piece in-tray';
+          el.dataset.idx=idx; el.dataset.row=r; el.dataset.col=c; el.dataset.reason=reasonAt(idx);
+          el.style.setProperty('--tileX', (c*pw).toString()); el.style.setProperty('--tileY', (r*ph).toString());
+          const img=document.createElement('img'); img.alt=''; img.src=imgURL; el.appendChild(img);
+          el.addEventListener('pointerdown', onPointerDown, {passive:false});
+          el.addEventListener('dblclick', bringToFront);
+          el.addEventListener('click', onPieceClick);
+          document.body.appendChild(el);
+          pieces.push({el,row:r,col:c,correctX:c*pw,correctY:r*ph,placed:false,lastX:null,lastY:null});
+        }
+      }
+      resetAll();
+    }
+
+    function layout(){
+      boardRect = board.getBoundingClientRect();
+      trayRect  = tray.getBoundingClientRect();
+      const bW = Math.floor(boardRect.width), bH = Math.floor(boardRect.height);
+      pw = bW / GRID; ph = bH / GRID; setVars(bW,bH,pw,ph); tray.style.minHeight = bH + 'px';
+
+      pieces.forEach(p=>{
+        p.correctX = p.col * pw; p.correctY = p.row * ph;
+        p.el.style.setProperty('--tileX', (p.col*pw).toString());
+        p.el.style.setProperty('--tileY', (p.row*ph).toString());
+        if(p.placed && p.el.parentElement===board){ p.el.style.left = p.correctX + 'px'; p.el.style.top  = p.correctY + 'px'; }
+      });
+    }
+
+    function resetAll(){
+      layout();
+      pieces.forEach(p=>{
+        spawnInTray(p, true);
+        p.el.style.setProperty('--rot', `rotate(${(Math.random()*4-2).toFixed(2)}deg)`);
+      });
+      placedCount=0; updateProgress(); finalOverlay.classList.remove('show');
+      if(undoBtn) undoBtn.style.display='none';
+      preSolveSnapshot = null; closePopover();
+    }
+
+    function shuffleUnplaced(){
+      layout();
+      pieces.forEach(p=>{ if(p.placed) return; spawnInTray(p, true); p.el.style.setProperty('--rot', `rotate(${(Math.random()*4-2).toFixed(2)}deg)`); });
+    }
+
+    function onPointerDown(ev){
+      ev.preventDefault();
+      const el = ev.currentTarget; const idx=+el.dataset.idx; const piece=pieces[idx];
+      if(piece.placed) return; // platziertes Teil: nur anklicken, nicht ziehen
+      bringToFront({currentTarget:el});
+
+      const wasInTrayAtPickup = el.classList.contains('in-tray');
+
+      // Ausgangsposition (Pixel) exakt festhalten und sofort einfrieren
+      const r0 = el.getBoundingClientRect();
+      const startLeft = r0.left; const startTop = r0.top;
+      setAbsPos(el, startLeft, startTop);
+
+      const start = getPointer(ev);
+      const offX = start.x - startLeft; const offY = start.y - startTop;
+      el.setPointerCapture && el.setPointerCapture(ev.pointerId);
+
+      let moving = true;
+      const move = (e)=>{ if(!moving) return; const pt = getPointer(e); setAbsPos(el, pt.x-offX, pt.y-offY); };
+      const up = (e)=>{
+        moving=false; el.releasePointerCapture && el.releasePointerCapture(ev.pointerId);
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+        layout();
+        const now = el.getBoundingClientRect();
+        const bx = boardRect.left, by = boardRect.top;
+        const localX = now.left - bx; const localY = now.top - by;
+        const dist = Math.hypot(localX - piece.correctX, localY - piece.correctY);
+        const thr = Math.min(pw, ph) * 0.55;
+        if(dist < thr){
+          if(el.parentElement!==board) board.appendChild(el);
+          el.style.left = piece.correctX + 'px';
+          el.style.top  = piece.correctY + 'px';
+          el.style.setProperty('--rot','rotate(0deg)');
+          el.classList.add('placed');
+          piece.placed = true; el.style.pointerEvents='auto';
+          placedCount++; updateProgress(); showReason(idx);
+          if(placedCount===TOTAL) celebrate();
+        }else{
+          // Falsch platziert: exakt zur Aufnahmestelle zurück
+          setAbsPos(el, startLeft, startTop);
+          // Merke letzte Tray-Position, damit Neu-Spawn dort stattfindet
+          const nowRect = el.getBoundingClientRect();
+          const centerX = nowRect.left + nowRect.width/2, centerY = nowRect.top + nowRect.height/2;
+          const inTrayNow = (centerX>=trayRect.left && centerX<=trayRect.right && centerY>=trayRect.top && centerY<=trayRect.bottom);
+          if(inTrayNow){ piece.lastX = startLeft; piece.lastY = startTop; }
+          if(wasInTrayAtPickup || inTrayNow){ el.classList.add('in-tray'); } else { el.classList.remove('in-tray'); }
+        
+        }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up, {once:true});
+    }
+
+    function solveAll(){
+      layout();
+      // Snapshot
+      preSolveSnapshot = pieces.map(p=>({
+        placed: p.placed,
+        left: p.el.getBoundingClientRect().left,
+        top:  p.el.getBoundingClientRect().top,
+        inTray: p.el.classList.contains('in-tray'),
+        z: parseInt(p.el.style.zIndex||'0',10),
+        rot: p.el.style.getPropertyValue('--rot') || 'rotate(0deg)',
+        parentIsBoard: p.el.parentElement===board
+      }));
+
+      pieces.forEach(p=>{
+        if(p.el.parentElement!==board) board.appendChild(p.el);
+        p.el.classList.remove('in-tray');
+        p.el.classList.add('placed');
+        p.el.style.left = p.correctX + 'px';
+        p.el.style.top  = p.correctY + 'px';
+        p.el.style.setProperty('--rot','rotate(0deg)');
+        p.placed = true; p.el.style.pointerEvents = 'auto';
+      });
+      placedCount = TOTAL; updateProgress();
+      if(undoBtn) undoBtn.style.display = 'inline-flex';
+      renderReasonsList();
+      finalOverlay.classList.add('show');
+      closePopover();
+    }
+
+    function undoSolve(){
+      if(!preSolveSnapshot) return;
+      layout();
+      pieces.forEach((p,i)=>{
+        const snap = preSolveSnapshot[i];
+        if(snap.parentIsBoard && snap.placed){
+          if(p.el.parentElement!==board) board.appendChild(p.el);
+          p.el.classList.remove('in-tray');
+          p.el.classList.add('placed');
+          p.el.style.left = p.correctX + 'px';
+          p.el.style.top  = p.correctY + 'px';
+          p.el.style.setProperty('--rot','rotate(0deg)');
+          p.placed = true; p.el.style.pointerEvents='auto';
+        }else{
+          if(p.el.parentElement===board) document.body.appendChild(p.el);
+          p.el.classList.remove('placed');
+          p.placed = false;
+          setAbsPos(p.el, snap.left, snap.top);
+          if(snap.inTray) p.el.classList.add('in-tray'); else p.el.classList.remove('in-tray');
+          p.el.style.pointerEvents='auto';
+        }
+        p.el.style.zIndex = String(snap.z || (++zCounter));
+        p.el.style.setProperty('--rot', snap.rot || 'rotate(0deg)');
+      });
+      placedCount = preSolveSnapshot.filter(s=>s.parentIsBoard && s.placed).length; updateProgress();
+      if(undoBtn) undoBtn.style.display = 'none';
+      preSolveSnapshot = null; closePopover(); finalOverlay.classList.remove('show');
+    }
+
+    function onPieceClick(e){
+      const el = e.currentTarget; const idx = +el.dataset.idx; const p = pieces[idx];
+      const isPlacedInBoard = p.placed && p.el.parentElement === board;
+      if(!isPlacedInBoard){ closePopover(); return; }
+      if(popEl.classList.contains('show') && currentPopIdx===idx){ closePopover(); return; }
+      openPopover(idx);
+    }
+    function openPopover(idx){
+      const text = reasonAt(idx);
+      popEl.innerHTML = `<div class=\"n\">#${idx+1}/${TOTAL}</div><div>${escapeHtml(text)}</div>`;
+      currentPopIdx = idx;
+      positionPopover(idx);
+      popEl.classList.add('show');
+    }
+    function positionPopover(idx){
+      const p = pieces[idx]; const b = board.getBoundingClientRect();
+      let x = b.left + p.correctX + pw/2; let y = b.top + p.correctY + ph/2;
+      const pad = 16; const vw = window.innerWidth;
+      x = Math.max(pad, Math.min(vw - pad, x));
+      if(y < 80){ popEl.classList.add('below'); } else { popEl.classList.remove('below'); }
+      popEl.style.left = x + 'px'; popEl.style.top  = y + 'px';
+    }
+
+    function bringToFront(e){ const el=e.currentTarget; el.style.zIndex=(++zCounter).toString(); }
+    function clamp(v,min,max){ return Math.min(Math.max(v,min), max); }
+    function spawnInTray(p, preferLast=true){
+      layout();
+      const hdr = document.querySelector('header');
+      const hb = hdr ? hdr.getBoundingClientRect().bottom : 0;
+      const pad = 10;
+      const minX = trayRect.left + pad;
+      const maxX = trayRect.right - pw - pad;
+      const minY = Math.max(trayRect.top + pad, hb + pad);
+      const maxY = trayRect.bottom - ph - pad;
+      let x = (preferLast && p.lastX!=null) ? p.lastX : rand(minX, Math.max(minX, maxX));
+      let y = (preferLast && p.lastY!=null) ? p.lastY : rand(minY, Math.max(minY, maxY));
+      x = clamp(x, minX, maxX); y = clamp(y, minY, maxY);
+      setAbsPos(p.el, x, y); p.lastX=x; p.lastY=y;
+      p.el.classList.add('in-tray'); p.el.classList.remove('placed'); p.placed=false;
+      p.el.style.pointerEvents='auto'; p.el.style.zIndex=(++zCounter).toString();
+    }
+    function setAbsPos(el,x,y){ el.style.left=x+'px'; el.style.top=y+'px'; }
+    function rand(min,max){ return Math.random()*(max-min)+min; }
+    function getPointer(e){ return {x:e.clientX, y:e.clientY}; }
+
+    function updateProgress(){ countEl.textContent = String(placedCount); bar.style.width = (placedCount/TOTAL*100) + '%'; }
+    function closePopover(){ popEl.classList.remove('show'); currentPopIdx=null; }
+
+    function renderReasonsList(){
+      const list = document.getElementById('reasonsList'); if(!list) return;
+      list.innerHTML='';
+      for(let i=0;i<TOTAL;i++){ const li=document.createElement('li'); li.textContent = reasonAt(i); list.appendChild(li); }
+      const fm = document.getElementById('finalMsg'); if(fm) fm.textContent = `Geschafft – ${placedCount}/${TOTAL} Teile!`;
+    }
+
+    function showReason(idx){
+      const text = reasonAt(idx);
+      if(!reasonOverlay) return;
+      reasonN.textContent = `#${idx+1}/${TOTAL}`;
+      reasonText.textContent = text;
+      reasonOverlay.classList.add('show');
+    }
+
+    function celebrate(){ // nur beim echten Lösen
+      renderReasonsList(); finalOverlay.classList.add('show');
+      for(let i=0;i<160;i++){
+        const d=document.createElement('div'); d.className='confetti';
+        d.style.left=Math.random()*100+'vw'; d.style.background=`hsl(${Math.floor(Math.random()*360)} 90% 60%)`;
+        d.style.animation=`fall ${3+Math.random()*2}s linear ${Math.random()}s forwards`;
+        document.body.appendChild(d); setTimeout(()=>d.remove(),6000);
+      }
+    }
+
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
+    function getCurrentImageURL(){ const v=getComputedStyle(document.documentElement).getPropertyValue('--puzzle-image').trim(); const m=v.match(/url\(["']?(.*?)["']?\)/); return m?m[1]:''; }
+    function setVars(bW,bH,pw,ph){ const r=document.documentElement.style; r.setProperty('--boardW', bW+'px'); r.setProperty('--boardH', bH+'px'); r.setProperty('--pw', pw+'px'); r.setProperty('--ph', ph+'px'); }
+
+    function bootDefaultImage(){
+      const candidates = ['Puzzle.png','Puzzle.jpg','Puzzle.jpeg','puzzle.png','puzzle.jpg','puzzle.jpeg'];
+      tryLoad(0);
+      function tryLoad(i){
+        if(i>=candidates.length){
+          // Fallback: Kein Bild gefunden – Puzzle funktioniert trotzdem, aber Hinweis anzeigen
+          const msg = 'Bilddatei nicht gefunden (Puzzle.png/.jpg/.jpeg). Lege die Datei neben die HTML oder passe den Namen im Code an.';
+          if(toast){ const card=document.createElement('div'); card.className='card'; card.innerHTML=`<div>${escapeHtml(msg)}</div>`; toast.innerHTML=''; toast.appendChild(card); setTimeout(()=>{ if(toast.contains(card)) toast.innerHTML=''; }, 5000); }
+          makeGridGuides(); buildPieces(); layout();
+          return;
+        }
+        const url = candidates[i];
+        const img = new Image();
+        img.onload=()=>{ imgURL=url; document.documentElement.style.setProperty('--puzzle-image', `url('${url}')`);
+          const ratio=img.naturalWidth/img.naturalHeight; document.documentElement.style.setProperty('--aspect', ratio+'');
+          if(hintImg) hintImg.src = url;
+          makeGridGuides(); buildPieces(); layout(); };
+        img.onerror=()=> tryLoad(i+1);
+        img.src=url;
+      }
+    }
+  })();
+  </script>
+
+  <!-- Audio + JS (vor </body>) -->
+  <audio id="bgAudio" src="radio.mp3" preload="auto" loop></audio>
+  <script>
+    (function(){
+      const audio  = document.getElementById('bgAudio');
+      const btnPlay= document.getElementById('btnPlay');
+      const btnStop= document.getElementById('btnStop');
+      const np     = document.getElementById('np');
+      if(!audio || !btnPlay || !btnStop || !np) return;
+
+      btnPlay.addEventListener('click', async ()=>{
+        try {
+          await audio.play();
+          np.textContent = 'Radio: läuft';
+        } catch(e){
+          np.textContent = 'Tippe einmal irgendwo (Autoplay-Block).';
+        }
+      });
+      btnStop.addEventListener('click', ()=>{
+        audio.pause();
+        audio.currentTime = 0;
+        np.textContent = 'Radio: aus';
+      });
+    })();
+  </script>
+</body>
+</html>

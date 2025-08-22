@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Polaroid Wall – Longus Lieblingsbilder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#f8f5f0; --ink:#2f2a27; --muted:#8a817c; --card:#ffffff; --line:#eae6e1; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial; line-height:1.55}
+    .wrap{width:min(1100px,100% - 32px); margin-inline:auto}
+
+    /* Subtle paper texture */
+    body::before{content:""; position:fixed; inset:0; pointer-events:none; opacity:.28; mix-blend-mode:multiply;
+      background:radial-gradient(rgba(0,0,0,.03) 1px, transparent 1px) 0 0/8px 8px}
+
+    /* Header */
+    .page-head{position:sticky; top:0; z-index:50; background:linear-gradient(to bottom, rgba(248,245,240,.97), rgba(248,245,240,.82)); backdrop-filter:saturate(110%) blur(4px); border-bottom:1px solid var(--line)}
+    .page-head .inner{display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:14px 0}
+    .title{font-weight:800}
+    .subtitle{color:var(--muted)}
+
+    /* Masonry wall */
+    .wall{column-count:1; column-gap:18px; padding:18px 0 60px}
+    @media (min-width:600px){ .wall{column-count:2} }
+    @media (min-width:900px){ .wall{column-count:3} }
+    @media (min-width:1200px){ .wall{column-count:4} }
+
+    .polaroid{display:inline-block; width:100%; break-inside:avoid; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 12px 18px; margin:0 0 18px; box-shadow:0 10px 24px rgba(20,16,12,.07); transform:rotate(var(--rot, 0deg)); transition:transform .18s ease, box-shadow .18s ease; position:relative}
+    .polaroid:hover{transform:rotate(calc(var(--rot, 0deg) * .4)) translateY(-2px) scale(1.02); box-shadow:0 16px 36px rgba(20,16,12,.12)}
+
+    .frame{position:relative; background:#fff; border-radius:10px; overflow:hidden}
+    .frame::after{content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 1px rgba(0,0,0,.05)}
+    .frame img{display:block; width:100%; height:auto}
+    .placeholder{display:grid; place-items:center; padding:36px; color:#b3a9a1; font-size:1.8rem}
+
+    .caption{font-family:"Caveat", cursive; font-size:1.2rem; text-align:center; margin-top:12px; color:#2b2623}
+
+    .meta{ text-align:center; color:var(--muted); font-size:.95rem; margin-top:4px }
+
+    /* Tapes (occasionally) */
+    .tape{position:absolute; width:64px; height:22px; opacity:.95; border-radius:3px;
+      background:repeating-linear-gradient(90deg, rgba(255,255,255,.28) 0 7px, rgba(0,0,0,.06) 7px 8px), linear-gradient(#fff4b0,#ecd98f);
+      border:1px solid #e2d59a; box-shadow:0 4px 12px rgba(0,0,0,.15); mix-blend-mode:multiply}
+    .tape.lt{ top:-12px; left:14px; transform:rotate(-11deg) }
+    .tape.rt{ top:-12px; right:14px; transform:rotate(9deg) }
+    .tape.lb{ bottom:-12px; left:18px; transform:rotate(7deg) }
+    .tape.rb{ bottom:-12px; right:18px; transform:rotate(-6deg) }
+
+    /* Pin (occasionally) */
+    .pin{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); width:14px; height:14px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #ff8a80, #d84315); border:1px solid rgba(0,0,0,.15); box-shadow:0 8px 14px rgba(0,0,0,.3) }
+
+    /* Lightbox */
+    dialog#lightbox{border:none; padding:0; border-radius:16px; max-width:min(92vw,1100px); box-shadow:0 20px 60px rgba(0,0,0,.35)}
+    dialog#lightbox::backdrop{background:rgba(0,0,0,.55)}
+    .lb-wrap{background:#000; display:grid; gap:8px}
+    .lb-media{max-height:78vh; display:grid; place-items:center; background:#000}
+    .lb-media img{max-width:100%; max-height:78vh; display:block}
+    .lb-cap{padding:10px 14px 16px; background:#fff; border-top:1px solid #eee}
+    .lb-cap .line1{font-family:"Caveat", cursive; font-size:1.4rem}
+    .lb-cap .line2{color:var(--muted); font-size:.95rem}
+
+    .to-top{position:fixed; right:16px; bottom:16px; padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:#fff; box-shadow:0 6px 20px rgba(0,0,0,.08); cursor:pointer}
+  </style>
+</head>
+<body>
+  <header class="page-head">
+    <div class="wrap inner">
+      <div>
+        <div class="title">Polaroid Wall Longus Lieblingsbilder</div>
+        <div class="subtitle" id="year-sub">60 Fotos</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="wall" class="wall" aria-live="polite"></div>
+  </main>
+
+  <button class="to-top" aria-label="Nach oben" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+  <dialog id="lightbox" aria-label="Foto groß ansehen">
+    <div class="lb-wrap">
+      <div class="lb-media"><img id="lb-img" alt=""></div>
+      <div class="lb-cap">
+        <div class="line1" id="lb-cap"></div>
+        <div class="line2"><span id="lb-date"></span><span id="lb-loc"></span></div>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+  // === Simple setup: images live in /media, names like p01.jpg ... p60.jpg ===
+  const SIMPLE_DIR  = "media";  // one folder
+  const DEFAULT_EXT = "jpg";    // default if no extension in name
+
+  // ⬇️ EDIT HIER: Trage unter name deinen Dateinamen ein, unter caption deinen Kommentar,
+  // optional date im Format YYYY-MM-DD und location. Du kannst beliebig viele Einträge lassen/entfernen.
+  const photos = [
+    { name:"p01", caption:"Mingüüüüüs", date:"", location:"" },
+    { name:"p02", caption:"Das erste Mingus Bild hihihihi", date:"", location:"" },
+    { name:"p03", caption:"Unser erstes mal essen gehen", date:"", location:"" },
+    { name:"p04", caption:"Coca Colii", date:"", location:"" },
+    { name:"p05", caption:"Cool Minh", date:"", location:"" },
+    { name:"p06", caption:"Fusa", date:"", location:"" },
+    { name:"p07", caption:"Das erste Selfie mit Mingus und ein Capybara", date:"", location:"" },
+    { name:"p08", caption:"Unser erstes Selfie", date:"", location:"" },
+    { name:"p09", caption:"So ein müdi", date:"", location:"" },
+    { name:"p10", caption:"Der Morgen danach", date:"", location:"" },
+    { name:"p11", caption:"Mingo Mongo", date:"", location:"" },
+    { name:"p12", caption:"Kiesgrube mit Mingus", date:"", location:"" },
+    { name:"p13", caption:"Kuscheln mit Avofusa", date:"", location:"" },
+    { name:"p14", caption:"Erstes mal in Mr Kien Town", date:"", location:"" },
+    { name:"p15", caption:"Zu freeeesh", date:"", location:"" },
+    { name:"p16", caption:"Mingus am rasieren", date:"", location:"" },
+    { name:"p17", caption:"Beglin", date:"", location:"" },
+    { name:"p18", caption:"Nachtflohmarkt war zu wild", date:"", location:"" },
+    { name:"p19", caption:"Eyeliners in Beglin", date:"", location:"" },
+    { name:"p20", caption:"Intense Schach Match", date:"", location:"" },
+    { name:"p21", caption:"Oh yeeeee", date:"", location:"" },
+    { name:"p22", caption:"Schlittschüüüs", date:"", location:"" },
+    { name:"p23", caption:"Was tooka lookas du mich so an?", date:"", location:"" },
+    { name:"p25", caption:"Mara, Mingus und Mongus", date:"", location:"" },
+    { name:"p26", caption:"peekaboo", date:"", location:"" },
+    { name:"p27", caption:"smooch", date:"", location:"" },
+    { name:"p28", caption:"Roman numeral seven, bae, drop it like it's hot", date:"", location:"" },
+    { name:"p29", caption:"brrr brrr", date:"", location:"" },
+    { name:"p30", caption:"was ist denn das für ein bebi", date:"", location:"" },
+    { name:"p31", caption:"chuu chuu", date:"", location:"" },
+    { name:"p32", caption:"Family Time", date:"", location:"" },
+    { name:"p33", caption:"Garlic Nose", date:"", location:"" },
+    { name:"p34", caption:"Meine Künstler Maus", date:"", location:"" },
+    { name:"p35", caption:"Darüber reden wir nicht", date:"", location:"" },
+    { name:"p36", caption:"schnarch schnarch", date:"", location:"" },
+    { name:"p37", caption:"Friseur Time", date:"", location:"" },
+    { name:"p38", caption:"Beglin 2.0", date:"", location:"" },
+    { name:"p39", caption:"Oh ye bebsen", date:"", location:"" },
+    { name:"p40", caption:"MR Fresh Mingooo", date:"", location:"" },
+    { name:"p41", caption:"Mingos Blick wenn die Pringles Dose leer ist", date:"", location:"" },
+    { name:"p42", caption:"DU Maus", date:"", location:"" },
+    { name:"p43", caption:"Coco stinkt", date:"", location:"" },
+    { name:"p44", caption:"Spiegels", date:"", location:"" },
+    { name:"p45", caption:"spoderman time", date:"", location:"" },
+    { name:"p46", caption:"saranghae", date:"", location:"" },
+    { name:"p47", caption:"Platter Mingus", date:"", location:"" },
+    { name:"p48", caption:"süüüßi", date:"", location:"" },
+    { name:"p49", caption:"Mingo Lamar", date:"", location:"" },
+    { name:"p50", caption:"Blauer Teppich>", date:"", location:"" },
+    { name:"p51", caption:"Der Beste Nap in meinem Leben", date:"", location:"" },
+    { name:"p52", caption:"M&M", date:"", location:"" },
+    { name:"p53", caption:"Tony Tony Mingo", date:"", location:"" },
+    { name:"p54", caption:"Mein beeeebi", date:"", location:"" },
+    { name:"p55", caption:"I love when Minh count me in", date:"", location:"" },
+    { name:"p56", caption:"Blümchen Mingo", date:"", location:"" },
+    { name:"p57", caption:"Fortnite Battlepass", date:"", location:"" },
+    { name:"p58", caption:"Lego Mingus", date:"", location:"" },
+    { name:"p59", caption:"Bebi Mingus", date:"", location:"" },
+    { name:"p60", caption:"Silvester", date:"", location:"" },
+    { name:"p24", caption:"Setuhssy", date:"", location:"" }
+  ];
+// Probabilities for tapes/pins (stable per image)
+  const TAPE_ENABLED = true;
+  const PIN_ENABLED  = true;
+  const TAPE_PROB = 0.55; // ~55% get tape
+  const PIN_PROB  = 0.22; // ~22% get a pin
+
+  // Helpers
+  const rotations = ["-2.5deg","-2deg","-1.5deg","-1deg","0.5deg","1deg","1.5deg","2deg"];
+  function rotFor(str){ let h=0; for(const ch of str){ h=(h*31 + ch.charCodeAt(0))|0 } return rotations[Math.abs(h)%rotations.length]; }
+  function el(tag, attrs={}, ...children){ const node=document.createElement(tag); Object.entries(attrs||{}).forEach(([k,v])=>{ if(k==="class") node.className=v; else if(k==="style" && typeof v==="object"){ Object.assign(node.style,v); } else if(k.startsWith("on") && typeof v==="function") node.addEventListener(k.slice(2), v); else if(v!==undefined && v!==null) node.setAttribute(k,v); }); children.flat().forEach(c=> node.appendChild(c?.nodeType? c : document.createTextNode(c??""))); return node; }
+  function srcFor(p){ if(p.src) return p.src; const dir = SIMPLE_DIR.replace(/\/+$/,''); let n = (p.name || 'photo').toString(); if(!/\.(jpe?g|png|webp|gif)$/i.test(n)){ n = `${n}.${DEFAULT_EXT}`; } return `${dir}/${n}`; }
+  function hashStr(str){ let h=0; for(const ch of str){ h=(h*131 + ch.charCodeAt(0))|0 } return h; }
+  function hash01(h){ return (Math.abs(h % 1000))/1000; }
+
+  function maybeAddTapes(pol, hash){
+    if(!TAPE_ENABLED) return;
+    if(hash01(hash) > TAPE_PROB) return;
+    // choose variant: top only, top+lb, top+rb
+    const variant = Math.abs(hash) % 3;
+    pol.appendChild(el('i',{class:'tape lt'}));
+    pol.appendChild(el('i',{class:'tape rt'}));
+    if(variant === 1) pol.appendChild(el('i',{class:'tape lb'}));
+    if(variant === 2) pol.appendChild(el('i',{class:'tape rb'}));
+  }
+  function maybeAddPin(pol, hash){
+    if(!PIN_ENABLED) return;
+    if(hash01(hash>>1) > PIN_PROB) return;
+    pol.appendChild(el('i',{class:'pin', title:'Pin'}));
+  }
+
+  // Renderer
+  function renderPolaroid(p){
+    const src = srcFor(p);
+    const h = hashStr(src);
+    const pol = el("figure", {class:"polaroid", style:{"--rot": rotFor(src)}},
+      el("div", {class:"frame"},
+        el("img", {src:src, alt:p.caption||"", loading:"lazy", decoding:"async", onerror:(e)=>{ e.target.replaceWith(el("div", {class:"placeholder"}, "📷")); }})
+      ),
+      el("figcaption", {class:"caption"}, p.caption||""),
+      el("div", {class:"meta"}, p.date ? new Date(p.date).toLocaleDateString("de-DE", {day:"2-digit", month:"short", year:"numeric"}).replace(".", "") : "")
+    );
+    maybeAddTapes(pol, h);
+    maybeAddPin(pol, h);
+    pol.addEventListener('click', ()=> openLightbox(p));
+    return pol;
+  }
+
+  function openLightbox(p){
+    const src = srcFor(p);
+    const dia = document.getElementById('lightbox');
+    const supported = typeof HTMLDialogElement === 'function' && !!dia.showModal;
+    if(!supported){ window.open(src, '_blank'); return; }
+    document.getElementById('lb-img').src = src;
+    document.getElementById('lb-img').alt = p.caption||"";
+    document.getElementById('lb-cap').textContent = p.caption||"";
+    const d = p.date ? new Date(p.date).toLocaleDateString('de-DE',{day:'2-digit',month:'short',year:'numeric'}).replace('.', '') : '';
+    document.getElementById('lb-date').textContent = d;
+    document.getElementById('lb-loc').textContent = p.location ? (d ? ' · ' : '') + p.location : '';
+    dia.showModal();
+    const closeOnBackdrop = (ev)=>{ if(ev.target===dia) dia.close(); };
+    dia.addEventListener('click', closeOnBackdrop, {once:true});
+    const esc = (e)=>{ if(e.key==='Escape'){ dia.close(); window.removeEventListener('keydown', esc); } };
+    window.addEventListener('keydown', esc);
+  }
+
+  function renderWall(list){
+    const wall = document.getElementById('wall'); wall.innerHTML = '';
+    list.forEach(p=> wall.appendChild(renderPolaroid(p)));
+    document.getElementById('year-sub').textContent = `${list.length} Fotos`;
+  }
+
+  renderWall(photos);
+  </script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mama Hanh – Bilder + Fast‑Fall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root{ --beige:#f8ecd9; --ink:#3a2d29; --accent:#e05a87; --pixel:#c9b9a6; }
+    html,body{height:100%; margin:0}
+    body{font-family:"Press Start 2P", monospace; color:var(--ink); background:var(--beige)}
+
+    .topbar{position:sticky; top:0; z-index:70; backdrop-filter:saturate(110%) blur(2px); background:rgba(248,236,217,.9); border-bottom:2px solid var(--pixel)}
+    .topbar-inner{max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:12px; padding:6px 12px}
+    .top-avatar{width:28px; height:28px; border-radius:50%; object-fit:cover; border:2px solid var(--pixel)}
+    .top-count{font-size:10px; letter-spacing:1px; line-height:1.4}
+
+    .audio-controls{margin-left:auto; display:flex; gap:6px; align-items:center}
+    .btn{padding:6px 8px; font-size:10px; border:2px solid var(--pixel); background:#fff; color:var(--ink); border-radius:8px; box-shadow:0 3px 0 #e2d5c5; cursor:pointer}
+    .btn:active{transform:translateY(1px); box-shadow:0 2px 0 #e2d5c5}
+    .nowplaying{font-size:10px; opacity:.8}
+
+    .hero{position:relative; height:100svh; overflow:hidden}
+    .sky{position:absolute; inset:0; background:linear-gradient(#48a8ff, #2e8df3); image-rendering:pixelated; z-index:0}
+    .ground{position:absolute; left:0; right:0; bottom:0; height:120px; transition:height .6s ease; background: linear-gradient(#37c84a 0 20px, #319f3f 20px 26px, transparent 26px), repeating-linear-gradient(180deg, #7a4b2b 0 10px, #6b3f24 10px 20px); box-shadow: inset 0 6px 0 rgba(0,0,0,.15); z-index:1}
+    .hero.play .ground{height:260px}
+
+    .hero-center{position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:#fff; text-shadow:0 3px 0 rgba(0,0,0,.25); transition:opacity .4s; z-index:2}
+    .hero.play .hero-center{opacity:.05}
+
+    .big-timer{margin:0 10px}
+    .big-timer .line{display:block; font-size:clamp(28px, 8vw, 64px); letter-spacing:2px}
+    .fine{font-family:"VT323", monospace; font-size:clamp(18px,3vw,28px)}
+
+    .characters{position:absolute; left:0; right:0; bottom:120px; display:flex; gap:18px; justify-content:center; align-items:flex-end; z-index:4; pointer-events:none}
+    .characters img{height:90px; image-rendering:pixelated; animation:bob 2s ease-in-out infinite}
+    .characters img.npc{height:82px}
+    .characters img.garden{height:270px; position:absolute; left:2vw; bottom:0; animation-duration:4s}
+    @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+    .hero.play .characters{display:none}
+
+    .start-btn{position:absolute; left:50%; transform:translateX(-50%); bottom:250px; display:inline-flex; align-items:center; gap:10px; padding:12px 14px; background:#fff; border:3px solid var(--pixel); border-radius:12px; box-shadow:0 6px 0 #e2d5c5; text-decoration:none; color:var(--ink); font-size:12px; z-index:5}
+    .start-btn:hover{transform:translateX(-50%) translateY(1px)}
+    .hero.play .start-btn{display:none}
+
+    #gameCanvas{position:absolute; inset:0; display:none}
+    .hero.play #gameCanvas{display:block}
+
+    .content{background:var(--beige); padding:36px 16px 80px}
+    .wrap{max-width:1100px; margin:0 auto; text-align:center}
+
+    .menu{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; justify-items:center; margin-top:18px}
+    .card{display:grid; gap:10px; place-items:center; padding:16px; border:3px solid var(--pixel); border-radius:12px; background:#fff; color:var(--ink); width:100%; max-width:220px; box-shadow:0 8px 0 #e2d5c5}
+    .label{font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="topbar" id="topbar">
+    <div class="topbar-inner">
+      <img src="meinbild.jpeg" alt="Wir" class="top-avatar" />
+      <div class="top-count"><span id="topYMD">…</span> · <span id="topHMS">…</span></div>
+      <div class="audio-controls">
+        <button class="btn" id="btnPlay">▶ Play</button>
+        <button class="btn" id="btnStop">■ Stop</button>
+        <span class="nowplaying" id="np">—</span>
+      </div>
+    </div>
+  </div>
+
+  <audio id="bgAudio" src="radio.mp3" preload="auto" loop></audio>
+
+  <section class="hero" id="hero">
+    <div class="sky"></div>
+    <div class="ground" id="ground"></div>
+
+    <div class="hero-center" id="heroCenter">
+      <p class="big-timer">
+        <span class="line" id="heroYMD">…</span>
+        <span class="fine">seit 18·08·2024 — <span class="flip" id="heroHMS">…</span></span>
+      </p>
+    </div>
+
+    <div class="characters" id="characters">
+      <img class="garden" src="garten.png" alt="Garten" />
+      <img src="62139b8e.png" alt="Wir zwei" />
+      <img class="npc" src="coco.png" alt="Affe Coco" />
+      <img class="npc" src="pengussy.png" alt="Pinguin" />
+      <img class="npc" src="capy.png" alt="Capybara" />
+    </div>
+
+    <button class="start-btn" id="startBtn">🎮 Spiel starten</button>
+
+    <canvas id="gameCanvas"></canvas>
+  </section>
+
+  <section class="content">
+    <div class="wrap">
+      <div class="menu">
+        <a class="card" href="Reise.html"><div class="label">Bilder</div></a>
+        <a class="card" href="puzzle.html"><div class="label">Puzzle</div></a>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    /* ===== TIMER ===== */
+    const startDate = new Date("2024-08-18T00:00:00");
+    const heroYMD = document.getElementById('heroYMD');
+    const heroHMS = document.getElementById('heroHMS');
+    const topYMD = document.getElementById('topYMD');
+    const topHMS = document.getElementById('topHMS');
+    function pad(n){return String(n).padStart(2,'0')}
+    function diffYMD(now){ let t = new Date(startDate.getTime()); let y=0,m=0; while(true){const nx=new Date(t.getFullYear()+1,t.getMonth(),t.getDate()); if(nx<=now){t=nx;y++;} else break} while(true){const nx=new Date(t.getFullYear(),t.getMonth()+1,t.getDate()); if(nx<=now){t=nx;m++;} else break} const d=Math.floor((now-t)/86400000); return {y,m,d,rest:t}; }
+    function renderTimers(){ const now=new Date(); const {y,m,d,rest}=diffYMD(now); let ms = now-rest - d*86400000; const hh=Math.floor(ms/3600000); ms-=hh*3600000; const mm=Math.floor(ms/60000); ms-=mm*60000; const ss=Math.floor(ms/1000); const ymdStr=`${y} Jahr${y===1?'':'e'} · ${m} Monat${m===1?'':'e'} · ${d} Tag${d===1?'':'e'}`; heroYMD.textContent=ymdStr; topYMD.textContent=ymdStr; const hmsStr=`${pad(hh)}:${pad(mm)}:${pad(ss)}`; heroHMS.textContent=hmsStr; topHMS.textContent=hmsStr; }
+    renderTimers(); setInterval(renderTimers,1000);
+
+    /* ===== AUDIO ===== */
+    const audio=document.getElementById('bgAudio');
+    const btnPlay=document.getElementById('btnPlay');
+    const btnStop=document.getElementById('btnStop');
+    const np=document.getElementById('np');
+    btnPlay.addEventListener('click', async ()=>{ try{ await audio.play(); np.textContent='Radio: läuft'; }catch(e){ np.textContent='Tippe kurz irgendwo'; }});
+    btnStop.addEventListener('click', ()=>{ audio.pause(); audio.currentTime=0; np.textContent='Radio: aus'; });
+
+    /* ===== GAME ===== */
+    const hero=document.getElementById('hero');
+    const canvas=document.getElementById('gameCanvas');
+    const ctx=canvas.getContext('2d');
+    const groundEl=document.getElementById('ground');
+    const startBtn=document.getElementById('startBtn');
+
+    function resize(){ const r=hero.getBoundingClientRect(); canvas.width=r.width; canvas.height=r.height; }
+    window.addEventListener('resize', ()=>{ resize(); syncPlayerToGround(); }); resize();
+    const groundY=()=> canvas.height - groundEl.offsetHeight;
+
+    // Assets
+    const sprites={};
+    const LOAD_PATHS={
+      hind:['hinderniss.png','media/hinderniss.png'],
+      motte:['motte.png','media/motte.png'],
+      knobi:['knoblauch.png','media/knoblauch.png'],
+      stand:['62139b8e.png'], run1:['170ab6d5.png'], run2:['c82a6029.png'], jump:['ffd594fd.png'],
+      coco:['coco.png','media/coco.png'], pengussy:['pengussy.png','media/pengussy.png'], capy:['capy.png','media/capy.png'],
+      garten:['garten.png','Garten.png','media/garten.png','media/Garten.png'],
+      kien:['Kien.png','kien.png','media/Kien.png','media/kien.png']
+    };
+    function loadImageWithFallback(list){ return new Promise(res=>{ if(!list||!list.length) return res(null); let i=0; const img=new Image(); img.onload=()=>res(img); img.onerror=()=>{i++; if(i<list.length) img.src=list[i]; else res(img);} ; img.src=list[0]; }); }
+    async function preload(){ const keys=Object.keys(LOAD_PATHS); await Promise.all(keys.map(k=> loadImageWithFallback(LOAD_PATHS[k]).then(img=> sprites[k]=img))); }
+
+    // Speed-abhängige Physik
+    const BASE_SPEED=450, MAX_SPEED=920;
+    function speedT(speed){ return Math.min(1, Math.max(0, (speed-BASE_SPEED)/(MAX_SPEED-BASE_SPEED))); }
+    function currentG(speed){ return 2350 * (1 + 0.18*speedT(speed)); }
+    function jumpImpulse(speed){ const BASE_J=-1120, MAX_J=-1450; const t=speedT(speed); return BASE_J + (MAX_J-BASE_J)*t; }
+
+    // State
+    let running=false, last=0, score=0, best=Number(localStorage.getItem('bestScore')||0), speed=BASE_SPEED;
+    const player={x:110, y:0, w:92, h:112, vy:0, onGround:true, duck:false, runT:0, frame:0, frameTime:0, fastFall:false, usedFastFall:false};
+    const obstacles=[]; let spawnT=0; let difficulty=0;
+    const knobis=[]; let knobiSpawnT=2; let knobiCount=0;
+    const popups=[]; const sparks=[]; let mamaHanh=0; const BONUS=20;
+
+    // Hintergrund-Cameos
+    const cameos=[]; let nextCameoScore=500; let nextKienScore=1000;
+    function spawnCameo(){ const options=[sprites.coco, sprites.pengussy, sprites.capy, sprites.garten].filter(i=>i && i.naturalWidth>0); if(!options.length) return; const img=options[Math.floor(Math.random()*options.length)]; const baseH=(img===sprites.garten)? 140 : 90; const aspect=(img.naturalWidth||1)/(img.naturalHeight||1); const h=baseH; const w=h*aspect; const x=canvas.width+40; const y=groundY()-h; cameos.push({x,y,w,h,img,par:0.6}); }
+    function spawnKien(){ const img=sprites.kien; if(!img||!img.naturalWidth) return; const aspect=(img.naturalWidth||1)/(img.naturalHeight||1); const h=player.h*3; const w=h*aspect; const x=canvas.width+60; const y=groundY()-h; cameos.push({x,y,w,h,img,par:0.65}); }
+
+    function toStartScreen(){ running=false; hero.classList.remove('play'); if(score>best){ best=Math.floor(score); localStorage.setItem('bestScore',best);} score=0; obstacles.length=0; knobis.length=0; popups.length=0; sparks.length=0; knobiCount=0; mamaHanh=0; cameos.length=0; nextCameoScore=500; nextKienScore=1000; player.fastFall=false; player.usedFastFall=false; startBtn.style.display='inline-flex'; startBtn.disabled=false; startBtn.textContent='🎮 Spiel starten'; }
+    function startGame(){ running=true; hero.classList.add('play'); score=0; speed=BASE_SPEED; obstacles.length=0; knobis.length=0; popups.length=0; sparks.length=0; cameos.length=0; nextCameoScore=500; nextKienScore=1000; spawnT=0; knobiSpawnT=1.8; difficulty=0; knobiCount=0; mamaHanh=0; player.y=groundY()-player.h; player.vy=0; player.onGround=true; player.fastFall=false; player.usedFastFall=false; startBtn.style.display='none'; last=0; requestAnimationFrame(loop); }
+
+    function jump(){
+      if(!running) return;
+      if(player.onGround){
+        player.vy = jumpImpulse(speed);
+        player.onGround = false;
+        player.fastFall = false;
+        player.usedFastFall = false;
+      } else if(!player.usedFastFall){
+        // FAST-FALL: in der Luft erneut springen → schneller auf den Boden
+        player.usedFastFall = true;
+        player.fastFall = true;
+        if(player.vy < 900) player.vy = 900; // sofort nach unten beschleunigen
+      }
+    }
+    function duck(d){ if(!running) return; player.duck=d; }
+
+    addEventListener('keydown', e=>{ if(e.code==='Space'||e.key==='ArrowUp'){ e.preventDefault(); jump(); } if(e.key==='ArrowDown') duck(true); });
+    addEventListener('keyup', e=>{ if(e.key==='ArrowDown') duck(false); });
+    hero.addEventListener('pointerdown', ()=> jump());
+
+    function spawnObstacle(){ const scale=2.1; const isTop = Math.random() < (0.12 + Math.min(0.3, difficulty*0.25)); if(isTop){ const h=(18+Math.random()*18)*scale; const w=28*scale; const gap=Math.max(220, Math.floor(player.h*2.2)); obstacles.push({x:canvas.width+20, y:groundY()-h-gap, w, h, kind:'top', jumped:false, counted:false}); } else { const w=(16+Math.random()*20)*scale, h=(22+Math.random()*26)*scale; obstacles.push({x:canvas.width+20, y:groundY()-h, w, h, kind:'ground', jumped:false, counted:false}); } }
+    function spawnKnobi(){ const float=Math.random()<0.5; const y=float? groundY()-140-Math.random()*50 : groundY()-60; knobis.push({x:canvas.width+20, y, size:36}); }
+
+    const rects=(a,b)=> a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+    const addPopup=(x,y,text)=> popups.push({x,y,vy:-38,t:0,dur:0.8,text});
+    function addSparks(x,y){ for(let i=0;i<12;i++){ sparks.push({x,y,vx:(Math.random()*120-60), vy:(-60-Math.random()*80), g:300, t:0, life:0.6, size:2}); } }
+
+    function draw(){
+      // HUD
+      ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(canvas.width-280,16,260,128);
+      ctx.fillStyle='#fff'; ctx.font='12px "Press Start 2P"';
+      ctx.fillText('SCORE '+Math.floor(score), canvas.width-270,36);
+      ctx.fillText('BEST  '+best, canvas.width-270,54);
+      ctx.fillText('KNOBI '+knobiCount, canvas.width-270,72);
+      ctx.fillText('MAMA HANH MOMENT '+mamaHanh, canvas.width-270,90);
+      ctx.fillText('+20 bei Sprung', canvas.width-270,108);
+
+      // Cameos (Hintergrund)
+      ctx.imageSmoothingEnabled=false;
+      cameos.forEach(c=>{ if(c.img && c.img.naturalWidth>0) ctx.drawImage(c.img, c.x, c.y, c.w, c.h); });
+
+      // Player
+      const bob=player.onGround? Math.sin(player.runT*10)*2 : 0;
+      ctx.save(); ctx.translate(player.x+player.w/2, player.y+player.h/2 + bob);
+      let img=sprites.stand; if(!player.onGround) img=sprites.jump; else img=(player.frame===0? sprites.run1 : sprites.run2);
+      if(img && img.naturalWidth>0) ctx.drawImage(img, -player.w/2, -player.h/2, player.w, player.h);
+      ctx.restore();
+
+      // Hindernisse
+      obstacles.forEach(o=>{ const tex = o.kind==='top'? sprites.motte : sprites.hind; if(tex && tex.naturalWidth>0){ ctx.drawImage(tex, o.x,o.y,o.w,o.h);} else { ctx.fillStyle='#3a2d29'; ctx.fillRect(o.x,o.y,o.w,o.h);} });
+
+      // Knobi
+      knobis.forEach(k=>{ const i=sprites.knobi; if(i&&i.naturalWidth>0) ctx.drawImage(i, k.x-k.size/2, k.y-k.size/2, k.size, k.size); });
+
+      // Popups & Sparks
+      popups.forEach(p=>{ const a=1-p.t/p.dur; if(a<=0) return; ctx.globalAlpha=Math.max(0,a); ctx.font='12px "Press Start 2P"'; ctx.fillStyle='#fff'; ctx.fillText(p.text, p.x, p.y); ctx.globalAlpha=1; });
+      ctx.fillStyle='#fff'; sparks.forEach(s=> ctx.fillRect(s.x, s.y, s.size, s.size));
+    }
+
+    function loop(ts){
+      if(!running) return; const dt=Math.min(0.02,(ts-last)/1000||0.016); last=ts;
+      // Physik (Fast‑Fall verstärkt die Gravitation)
+      const gMult = player.fastFall ? 2.2 : 1;
+      player.vy += currentG(speed)*gMult*dt; player.y += player.vy*dt; const gy=groundY(); if(player.y>gy-player.h){ player.y=gy-player.h; player.vy=0; player.onGround=true; player.fastFall=false; player.usedFastFall=false; }
+      if(player.onGround){ player.runT+=dt; player.frameTime+=dt; if(player.frameTime>0.1){ player.frame=1-player.frame; player.frameTime=0; } }
+
+      // Score & Difficulty
+      score += dt*(12 + speed/38); difficulty=Math.min(1.5, difficulty+dt*0.05);
+
+      // Cameo/Kien Trigger
+      const iscore=Math.floor(score); while(iscore>=nextCameoScore){ spawnCameo(); nextCameoScore+=500; } while(iscore>=nextKienScore){ spawnKien(); nextKienScore+=1000; }
+
+      // Spawns
+      spawnT -= dt; if(spawnT<=0){ spawnObstacle(); const base = 2.6 - Math.min(1.5, difficulty*1.2); spawnT = (base + Math.random()*0.6) * (360/speed); }
+      knobiSpawnT -= dt; if(knobiSpawnT<=0){ spawnKnobi(); knobiSpawnT=2+Math.random()*2; }
+
+      // Bewegung & Speed
+      obstacles.forEach(o=> o.x -= speed*dt); knobis.forEach(k=> k.x -= speed*dt); cameos.forEach(c=> c.x -= speed*c.par*dt); speed=Math.min(920, speed + 6*dt*60/60);
+
+      // Mama Hanh
+      const pRect={x:player.x-2, y:player.y + (player.duck?player.h*0.3:0), w:player.w, h:player.duck? player.h*0.7:player.h};
+      for(const o of obstacles){ if(o.kind!=='ground' || o.counted) continue; const pLeft=pRect.x, pRight=pRect.x+pRect.w; const overlap=(pRight>o.x)&&(pLeft<o.x+o.w); if(overlap){ const pBottom=pRect.y+pRect.h; if(pBottom<=o.y+2){ o.jumped=true; } } if(pLeft>=o.x+o.w){ if(o.jumped){ mamaHanh++; score+=20; addPopup(o.x+o.w/2, o.y-10, '+20 Mama Hanh!'); addSparks(o.x+o.w/2, o.y); } o.counted=true; } }
+
+      // Effekte & Aufräumen
+      for(let i=popups.length-1;i>=0;i--){ const p=popups[i]; p.t+=dt; p.y += p.vy*dt; if(p.t>p.dur) popups.splice(i,1); }
+      for(let i=sparks.length-1;i>=0;i--){ const s=sparks[i]; s.t+=dt; s.vy += s.g*dt; s.x += s.vx*dt; s.y += s.vy*dt; if(s.t>s.life) sparks.splice(i,1); }
+      while(obstacles.length && obstacles[0].x + obstacles[0].w < -20) obstacles.shift();
+      while(knobis.length && knobis[0].x < -30) knobis.shift();
+      for(let i=cameos.length-1;i>=0;i--){ if(cameos[i].x + cameos[i].w < -60) cameos.splice(i,1); }
+      for(const o of obstacles){ if(rects(pRect,o)){ toStartScreen(); return; } }
+      for(let i=knobis.length-1;i>=0;i--){ const k=knobis[i]; const r={x:k.x-k.size/2,y:k.y-k.size/2,w:k.size,h:k.size}; if(rects(pRect,r)){ knobiCount++; knobis.splice(i,1); } }
+
+      ctx.clearRect(0,0,canvas.width,canvas.height); draw(); requestAnimationFrame(loop);
+    }
+
+    function syncPlayerToGround(){ player.y=groundY()-player.h; }
+    startBtn.addEventListener('click', async ()=>{ startBtn.disabled=true; startBtn.textContent='⏳ Lädt…'; await preload(); startBtn.textContent='🎮 Start!'; syncPlayerToGround(); startGame(); setTimeout(()=> startBtn.disabled=false, 400); });
+  </script>
+</body>
+</html>
